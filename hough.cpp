@@ -20,9 +20,9 @@
 #define CANNY_THRESH_1 166
 #define CANNY_THRESH_2 166*3
 #define APERTURE_SIZE 3
-#define MAX_THRESHOLD 1
-#define MIN_LINE_LEN 200
-#define MAX_GAP_BET_LINES 55
+#define MAX_THRESHOLD 80
+#define MIN_LINE_LEN 30
+#define MAX_GAP_BET_LINES 20
 #define THICKNESS 3
 #define TYPE_OF_LINE 8
 
@@ -88,7 +88,7 @@ IplImage * detectLines(IplImage *frame){
     cvCanny(white, edges, CANNY_THRESH_1 , CANNY_THRESH_2, APERTURE_SIZE);
     color_dst = frame ; 
     // Find all lines int the binary image edges. 
-    lines = cvHoughLines2(edges, storage, CV_HOUGH_PROBABILISTIC, 1, CV_PI/360, MAX_THRESHOLD, MIN_LINE_LEN, MAX_GAP_BET_LINES );
+    lines = cvHoughLines2(edges, storage, CV_HOUGH_PROBABILISTIC, 1, CV_PI/180, MAX_THRESHOLD, MIN_LINE_LEN, MAX_GAP_BET_LINES );
     for (int i = 0; i < lines->total; i++)
     {
       CvPoint* line = (CvPoint*)cvGetSeqElem(lines,i);
