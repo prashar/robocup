@@ -9,9 +9,22 @@
 #define k_tol 45 
 
 // From digital color monitor ..
-#define k_BALLR 168 
-#define k_BALLG 69
-#define k_BALLB 46
+// Manual Calibration with Aammir's video
+#define k_BALLR 194
+#define k_BALLG 22
+#define k_BALLB 0
+
+// For Line Detection .. 
+#define THRESH_1 180
+#define WHITE 255 
+#define CANNY_THRESH_1 166
+#define CANNY_THRESH_2 166*3
+#define APERTURE_SIZE 3
+#define MAX_THRESHOLD 1
+#define MIN_LINE_LEN 200
+#define MAX_GAP_BET_LINES 55
+#define THICKNESS 3
+#define TYPE_OF_LINE 8
 
 IplImage * detectBall(IplImage * src){
   int w, h ; 
@@ -49,97 +62,139 @@ IplImage * detectBall(IplImage * src){
   return src ; 
 }
 
+IplImage * detectLines(IplImage *frame){
+
+  IplImage  *grey       = NULL;
+  IplImage  *white      = NULL;	
+  IplImage  *edges      = NULL;
+  IplImage  *color_dst  = NULL;
+  CvSeq* lines = 0;
+  CvMemStorage* storage = cvCreateMemStorage(0);
+
+  /* Get the frame and also create grey frame of same size*/
+  grey      = cvCreateImage(cvGetSize(frame), IPL_DEPTH_8U, 1);
+  white     = cvCreateImage(cvGetSize(frame), IPL_DEPTH_8U, 1);
+  edges     = cvCreateImage(cvGetSize(frame), IPL_DEPTH_8U, 1);
+  color_dst = cvCreateImage(cvGetSize(frame), IPL_DEPTH_8U, 3);
+
+    // Convert to grayscale
+    cvCvtColor(frame, grey, CV_BGR2GRAY);
+    // binarize the grayscale image, i.e. if pixel(x,y) is > THRESH_1
+    // then set pixel(x,y) to MAX_THRESH - This is the CV_THRESH_BINARY option. 
+    cvThreshold(grey, white, THRESH_1, WHITE , CV_THRESH_BINARY);
+    // Write the edges into another image edges. 
+    // If pixel magnitude between CANNY_THRESH_1 and CANNY_THRESH_2, then make
+    // it zero, if above CANNY_THRESH_2, then make it an edge. 
+    cvCanny(white, edges, CANNY_THRESH_1 , CANNY_THRESH_2, APERTURE_SIZE);
+    color_dst = frame ; 
+    // Find all lines int the binary image edges. 
+    lines = cvHoughLines2(edges, storage, CV_HOUGH_PROBABILISTIC, 1, CV_PI/360, MAX_THRESHOLD, MIN_LINE_LEN, MAX_GAP_BET_LINES );
+    for (int i = 0; i < lines->total; i++)
+    {
+      CvPoint* line = (CvPoint*)cvGetSeqElem(lines,i);
+      cvLine(color_dst, line[0], line[1], CV_RGB(255, 0, 0), THICKNESS, TYPE_OF_LINE);
+	}
+
+    /*
+    cvNamedWindow("original", CV_WINDOW_AUTOSIZE);
+    cvNamedWindow("grey", CV_WINDOW_AUTOSIZE);
+    cvNamedWindow("white", CV_WINDOW_AUTOSIZE);
+    cvNamedWindow("edges", CV_WINDOW_AUTOSIZE);
+	cvShowImage("grey", grey);
+	cvShowImage("white", white);
+	cvShowImage("edges",edges);
+    */
+
+    return color_dst ; 
+}
+
+void usage(){
+  printf("./hough -v|-a filename\n") ; 
+}
+
 
 int main(int argc, char* argv[])
 {
-        int delay = 0, key = 0, i = 0;
-        char *window_name;
-        CvCapture *video = NULL;
-        IplImage  *frame = NULL;
-        IplImage  *grey  = NULL;
-	      IplImage  *white = NULL;	
-        IplImage  *edges = NULL;
-        IplImage  *color_dst = NULL;
-        CvSeq* lines = 0;
-        CvMemStorage* storage = cvCreateMemStorage(0);
-        IplImage  *frame_with_ball  = NULL;
-	//CvVideoWriter *writer = 0;
+  int delay = 0, key = 0, i = 0;
+  char c ; 
+  char *window_name     = NULL ;
+  short vidFlagOn       = 0 ;              
+  int errorFlagOn       = 0 ; 
+  char      * fname     = NULL ; 
+  CvCapture * video     = NULL ; 
+  IplImage  * pic       = NULL ; 
+  
+  for(int i= 0 ; i < argc ; i++){
 
-	if(argc > 1)
-        {
-                video = cvCaptureFromFile(argv[1]);
-        }
-        else
-        {
-                printf("Usage: %s VIDEO_FILE\n", argv[0]);
-                return 1;
-        }
+    if(!strncmp(argv[i],"-v",2)){
+      vidFlagOn = 1 ; 
+      if(argv[i+1] == NULL){
+        errorFlagOn = 1 ; 
+      }else{
+        fname = argv[i+1] ; 
+      }
+      i++ ; 
+    }else if(!strncmp(argv[i],"-a",2)){
+      vidFlagOn = 0 ; 
+      if(argv[i+1] == NULL){
+        errorFlagOn = 1 ; 
+      }else{
+        fname = argv[i+1] ; 
+      }
+      i++ ; 
+    }
 
-        if(!video)
-        {
-                printf("Unable to open file\n");
-                return 1;
-        }
+    if(errorFlagOn){
+      usage() ; 
+      return -1 ; 
+    }
+  }
 
-        window_name = argv[1];
-        cvNamedWindow(window_name, CV_WINDOW_AUTOSIZE);
-	cvNamedWindow("original", CV_WINDOW_AUTOSIZE);
-	cvNamedWindow("grey", CV_WINDOW_AUTOSIZE);
-	cvNamedWindow("white", CV_WINDOW_AUTOSIZE);
-	cvNamedWindow("edges", CV_WINDOW_AUTOSIZE);
-	//writer = cvCreateVideoWriter("out.avi", CV_FOURCC('M','J','P','G'), 15, cvSize(640,480));
+  if(!vidFlagOn){
+    pic = cvLoadImage( fname );
+  }else{
+    video = cvCaptureFromFile( fname );
+    if(!video)
+    {
+      printf("Unable to open file\n");
+      return 1;
+    }
+    pic = cvQueryFrame(video) ; 
+    /* Display fps and calculate delay */
+    printf("Video FPS: %2.2f \n", cvGetCaptureProperty(video, CV_CAP_PROP_FPS));
+    delay = (int) (1000/cvGetCaptureProperty(video, CV_CAP_PROP_FPS));
+  }
 
-        /* Get the frame and also create grey frame of same size*/
-        frame     = cvQueryFrame(video);
-	grey      = cvCreateImage(cvGetSize(frame), IPL_DEPTH_8U, 1);
-	white     = cvCreateImage(cvGetSize(frame), IPL_DEPTH_8U, 1);
-        edges     = cvCreateImage(cvGetSize(frame), IPL_DEPTH_8U, 1);
-        color_dst = cvCreateImage(cvGetSize(frame), IPL_DEPTH_8U, 3);
-        frame_with_ball = cvCreateImage(cvGetSize(frame), IPL_DEPTH_8U, 3);
+  window_name = "VisionSimulator" ;  
+  cvNamedWindow(window_name, CV_WINDOW_AUTOSIZE);
+  while(pic)
+  {
+    IplImage * processed = detectLines(pic);
+    // Detect the ball first. 
+    detectBall(processed) ; 
+	/* show the loaded image with edges detected*/
+    cvShowImage(window_name, processed);
 
-        /* Display fps and calculate delay */
-        printf("%2.2f FPS\n", cvGetCaptureProperty(video, CV_CAP_PROP_FPS));
-        delay = (int) (1000/cvGetCaptureProperty(video, CV_CAP_PROP_FPS));
+    // If The user requested an image just be displayed, just wait .. 
+    if(!vidFlagOn){
+      while(1){
+        c = cvWaitKey(33);
+        if(c == 27) break;
+      }
+      break ; 
+    }
+    
+    /* load and check next frame */
+    pic = cvQueryFrame(video);
+    if(!pic)
+    {
+      printf("Error loading frame\n");
+      return 1;
+    }
 
-        while(frame)
-        {
-		//cvThreshold(frame,frame, 254, 255, CV_THRESH_BINARY);
-                cvCvtColor(frame, grey, CV_BGR2GRAY);
-		// Originally, 220-255. This eliminates all edges as well
-                cvThreshold(grey, white, 180, 255, CV_THRESH_BINARY);
-                cvCanny(white, edges, 166 , 166*3, 3);
-
-                //cvCvtColor(grey, color_dst, CV_GRAY2BGR);
-                color_dst = frame ; 
-
-                lines = cvHoughLines2(edges, storage, CV_HOUGH_PROBABILISTIC, 1, CV_PI/360, 15, 30, 10);
-
-                for (i = 0; i < lines->total; i++)
-                {
-			 CvPoint* line = (CvPoint*)cvGetSeqElem(lines,i);
-                         cvLine(color_dst, line[0], line[1], CV_RGB(255, 0, 0), 3, 8);
-		}
-          // Detect the ball first. 
-          frame_with_ball = detectBall(color_dst) ; 
-
-		 /* show the loaded image with edges detected*/
-                cvShowImage(window_name, color_dst);
-		//cvShowImage("original", frame_with_ball);
-		//cvShowImage("grey", grey);
-		//cvShowImage("white", white);
-		//cvShowImage("edges",edges);
-		//cvWriteFrame(writer, color_dst);
-                /* load and check next frame */
-                frame = cvQueryFrame(video);
-                if(!frame)
-                {
-                        printf("Error loading frame\n");
-                        return 1;
-                }
-
-                /* wait delay and check for quit key */
-                char c = cvWaitKey(33);
-                if(c == 27) break;
-        }
+    /* wait delay and check for quit key */
+    c = cvWaitKey(33);
+    if(c == 27) break;
+  }
 }
 
