@@ -29,6 +29,9 @@ ch8_ex8_3: ch8_ex8_3.o
 
 ch5_ex5_1: ch5_ex5_1.o 
 			$(CC) -o $@ $(ODIR)/$< $(LIBS)
+			
+ch7_ex7_5: ch7_ex7_5.o 
+			$(CC) -o $@ $(ODIR)/$< $(LIBS)
 
 houghex: houghex.o
 			$(CC) -o $@ $(ODIR)/$< $(LIBS)
