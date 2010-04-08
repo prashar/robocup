@@ -941,7 +941,7 @@ void occlude(IplImage* src, CvPoint cam_center, double radius) {
 			CvScalar black = CV_RGB(0,0,0);
 			CvScalar pix = cvGet2D(src, k, i);
 			// For each pixel, set it to black if it's to the right of the line.
-			if (!pointInsideCircle(cvPoint(i, k), cvPoint(300, 250), 220.0)) {
+			if (!pointInsideCircle(cvPoint(i, k), cvPoint(300, 250), radius)) {
 				cvSet2D(src, k, i, black);
 			}
 		}
@@ -1388,7 +1388,7 @@ int main(int argc, char* argv[]) {
 	CvPoint2D32f world_pos;
 	CvPoint perp_point;
 	while (pic) {
-		occlude(pic, cvPoint(300, 250), 220.0);
+		occlude(pic, cvPoint(300, 250), 205.0);
 		/*
 		 shootRayAtAngle(pic, &cam_center, 274, &perp_point);
 		 CvFont font;
