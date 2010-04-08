@@ -9,6 +9,11 @@
 #define k_apert 3
 #define f_tol 30
 #define w_tol 75
+#define b_tol 40
+
+// BALL COLOUR - ORANGE
+#define k_BALLU 196
+#define k_BALLV 52
 
 // From digital color monitor ..
 // Manual Calibration with Aammir's video
@@ -71,45 +76,46 @@ void capImage(char * fname, IplImage * pic) {
 	}
 }
 
-/*
- IplImage * detectBall(IplImage * src) {
- int w, h;
- CvScalar ballcolor = CV_RGB(k_BALLR,k_BALLG,k_BALLB);
- CvScalar pixcolor;
- CvScalar white = CV_RGB(255,255,255);
- CvScalar black = CV_RGB(0,0,0);
- // Rectangle Coordinates ..
- int miy = 10000, may = 0, mix = 10000, max = 0;
- // For each pixel in the src image, get it's color and compare with the ball
- // color
- for (h = 0; h < src->height; h++) {
- for (w = 0; w < src->width; w++) {
- pixcolor = cvGet2D(src, h, w);
- // Check if the current pixel color fits the range we're looking for.
- if (((pixcolor.val[0] - k_tol) <= ballcolor.val[0])
- && ((pixcolor.val[0] + k_tol) >= ballcolor.val[0])
- && ((pixcolor.val[1] - k_tol) <= ballcolor.val[1])
- && ((pixcolor.val[1] + k_tol) >= ballcolor.val[1])
- && ((pixcolor.val[2] - k_tol) <= ballcolor.val[2])
- && ((pixcolor.val[2] + k_tol) >= ballcolor.val[2])) {
- // Record where the ball is
- if (w > max)
- max = w;
- if (w < mix)
- mix = w;
- if (h < miy)
- miy = h;
- if (h > may)
- may = h;
- //cvSet2D(src,h,w,white);
- } else {
- //cvSet2D(src,h,w,black);
- }
+IplImage * detectBall(IplImage * src) {
+	int w, h;
+	CvScalar ballcolor = cvScalar(0, k_BALLU, k_BALLV);
+	CvScalar pixcolor;
+	CvScalar white = CV_RGB(255,255,255);
+	CvScalar black = CV_RGB(0,0,0);
+	// Convert to YUV
+	IplImage * img_yuv = cvCreateImage(cvGetSize(src), IPL_DEPTH_8U, 3);
+	cvCvtColor(src, img_yuv, CV_BGR2YCrCb);
+	// Rectangle Coordinates ..
+	int miy = 10000, may = 0, mix = 10000, max = 0;
+	// For each pixel in the src image, get it's color and compare with the ball
+	// color
+	for (h = 0; h < src->height; h++) {
+		for (w = 0; w < src->width; w++) {
+			pixcolor = cvGet2D(img_yuv, h, w);
+			// Check if the current pixel color fits the range we're looking for.
+			if (((pixcolor.val[1] - b_tol) <= ballcolor.val[1])
+					&& ((pixcolor.val[1] + b_tol) >= ballcolor.val[1])
+					&& ((pixcolor.val[2] - b_tol) <= ballcolor.val[2])
+					&& ((pixcolor.val[2] + b_tol) >= ballcolor.val[2])) {
+				// Record where the ball is
+				if (w > max)
+					max = w;
+				if (w < mix)
+					mix = w;
+				if (h < miy)
+					miy = h;
+				if (h > may)
+					may = h;
 
- }
- }
- }
- */
+				cvCircle(src,cvPoint(w,h),2,cvScalar(255,255,255),1);
+			} else {
+				//cvSet2D(src,h,w,black);
+			}
+
+		}
+	}
+}
+
 // This function just checks whether or not all pixels are accessible or not.
 // TODO: Directly access bytes instead of cvGet2D().
 void checkImagePixels(IplImage * src) {
@@ -1392,14 +1398,15 @@ int main(int argc, char* argv[]) {
 		 cvPutText(pic, text, cvPoint(0, 420), &font, cvScalar(255, 255, 255));
 		 */
 		/*
-		Neerajtestpoints(pic, 80, 220, cam_center, 1, &world_pos);
-		CvFont font;
-		cvInitFont(&font, CV_FONT_VECTOR0, 0.4, 0.4, 0, 1);
-		char text[40];
-		sprintf(text, "(%f,%f)", world_pos.x, world_pos.y);
-		cvPutText(pic, text, cvPoint(240, 260), &font, cvScalar(255, 255, 255));
-		*/
-		vaxis(pic);
+		 Neerajtestpoints(pic, 80, 220, cam_center, 1, &world_pos);
+		 CvFont font;
+		 cvInitFont(&font, CV_FONT_VECTOR0, 0.4, 0.4, 0, 1);
+		 char text[40];
+		 sprintf(text, "(%f,%f)", world_pos.x, world_pos.y);
+		 cvPutText(pic, text, cvPoint(240, 260), &font, cvScalar(255, 255, 255));
+		 */
+		//vaxis(pic);
+		detectBall(pic);
 		//shootRayAt90Incs(pic, &cam_center);
 		/*
 		 printf(
