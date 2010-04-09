@@ -36,7 +36,7 @@
 #define CANNY_THRESH_2 255
 #define APERTURE_SIZE 3
 #define MAX_THRESHOLD 70
-#define MIN_LINE_LEN 5
+#define MIN_LINE_LEN 35
 #define MAX_GAP_BET_LINES 5
 #define THICKNESS 3
 #define TYPE_OF_LINE 8
@@ -46,6 +46,8 @@
 // Camera Centre
 #define CAMERA_X 310
 #define CAMERA_Y 250
+
+bool match_yuv(CvScalar pixcolor, CvScalar comparecolor, int flag) ; 
 
 using namespace std;
 
@@ -316,6 +318,69 @@ IplImage * detectCorners(IplImage * src, CvSeq * lines) {
 	return src;
 }
 
+
+
+CvSeq* detectGoalPosts(IplImage * src, CvSeq* lines){
+	printf("Entered goal Post detection \n");
+	if(lines == NULL)
+		printf ("OOOOOOO\n");
+	CvScalar goalcolor = {0,k_BALLU,k_BALLV} ;    
+	IplImage  * dst       = NULL ;
+	dst = cvCreateImage(cvGetSize(src), IPL_DEPTH_8U, 3);
+ 	cvCvtColor(src, dst, CV_BGR2YCrCb);
+	for (int i = 0; i < lines->total; i++)
+	    {
+	      printf("for loop \n");
+	      CvPoint pt_to_check ; 
+	      CvPoint* line = (CvPoint*)cvGetSeqElem(lines,i);
+	      printf("P and Q: %d %d\n",line[0].x,line[0].y);
+	      pt_to_check.x = (line[1].x - line[0].x)/2 ; 
+	      pt_to_check.y = (line[1].y - line[1].y)/2 ;
+	      int j = 0;
+	      CvScalar pix = cvGet2D(dst, pt_to_check.y, pt_to_check.x);
+	      for (j = 0; j < 50; j++ )
+	      {
+		  CvScalar pix2 = cvGet2D(dst, pt_to_check.y+j, pt_to_check.x);
+		  if( match_yuv(pix2,goalcolor,0)) {
+			cvLine(src, line[0], line[1], CV_RGB(0,255,255),3,1);	
+			break;
+		  }
+	      }
+	      for (j = 0; j < 50; j++ )
+	      {
+		  CvScalar pix2 = cvGet2D(dst, pt_to_check.y, pt_to_check.x+j);
+		  if( match_yuv(pix2,goalcolor,0)) {
+			cvLine(src, line[0], line[1], CV_RGB(0,255,255),3,1);	
+			break;
+		  }
+	      }
+				 
+	      /*if( match_yuv(pix,goalcolor,0)){
+	      	 cvLine(src,line[0],line[1],CV_RGB(0,255,255),3,1) ; 
+              } */
+	      // draw each line
+	    }
+}
+
+
+// flag == 1 means compare white.
+bool match_yuv(CvScalar pixcolor, CvScalar comparecolor, int flag) {
+	int k_tol;
+	if (flag == 1) {
+		k_tol = w_tol;
+	} else
+		k_tol = b_tol;
+	if ( ((pixcolor.val[1] - k_tol)
+			<= comparecolor.val[1]) && ((pixcolor.val[1] + k_tol)
+			>= comparecolor.val[1]) && ((pixcolor.val[2] - k_tol)
+			<= comparecolor.val[2]) && ((pixcolor.val[2] + k_tol)
+			>= comparecolor.val[2])) {
+		return true;
+	}
+	return false;
+}
+
+
 IplImage * detectLines(IplImage *frame) {
 
 	IplImage *grey = NULL;
@@ -344,16 +409,19 @@ IplImage * detectLines(IplImage *frame) {
 	cvCanny(grey, edges, CANNY_THRESH_1, CANNY_THRESH_2, APERTURE_SIZE);
 	color_dst = frame;
 	// Find all lines int the binary image edges.
-	//lines = cvHoughLines2(edges, storage, CV_HOUGH_PROBABILISTIC, 9, CV_PI/180, MAX_THRESHOLD, MIN_LINE_LEN, MAX_GAP_BET_LINES );
+	lines = cvHoughLines2(edges, storage, CV_HOUGH_PROBABILISTIC, 1.67, CV_PI/180, MAX_THRESHOLD, MIN_LINE_LEN, MAX_GAP_BET_LINES );
 	//printf("Total Number of Lines detected: %d\n",lines->total) ;
-	//    for (int i = 0; i < lines->total; i++)
-	//    {
-	//      CvPoint* line = (CvPoint*)cvGetSeqElem(lines,i);
-	//      printf("P and Q: %d %d\n",line[0].x,line[0].y);
-	//      cvLine(color_dst, line[0], line[1], CV_RGB(255, 0, 0), THICKNESS, TYPE_OF_LINE);
-	//	}
+	    /*for (int i = 0; i < lines->total; i++)
+	    {
+	      CvPoint* line = (CvPoint*)cvGetSeqElem(lines,i);
+	    //  printf("P and Q: %d %d\n",line[0].x,line[0].y);
+	      // draw each line
+	      cvLine(color_dst, line[0], line[1], CV_RGB(255, 0, 0), THICKNESS, TYPE_OF_LINE);
+            }*/
+	detectGoalPosts(color_dst, lines);	
 
-	float rho_arr[100];
+		
+	/*float rho_arr[100];
 	float theta_arr[100];
 	float par_lines[100][2];
 	lines = cvHoughLines2(edges, storage, CV_HOUGH_STANDARD, 1, CV_PI / 180,
@@ -402,7 +470,7 @@ IplImage * detectLines(IplImage *frame) {
 		//printf("------->: %f with %f \n",par_lines[i][0],par_lines[i][0]) ;
 		printf("a) rho[i] %f, theta[i] %f \n", par_lines[parlines][0],
 				par_lines[parlines][1]);
-	}
+	}*/
 
 	/*edge_detect = detectCorners(frame,lines);
 
@@ -412,13 +480,13 @@ IplImage * detectLines(IplImage *frame) {
 	 //while(1){}
 	 global_match=0 ;
 	 */
-	cvNamedWindow("grey", CV_WINDOW_AUTOSIZE);
+	//cvNamedWindow("grey", CV_WINDOW_AUTOSIZE);
 	//capImage("cap2.jpg",white) ;
-	cvNamedWindow("white", CV_WINDOW_AUTOSIZE);
-	cvNamedWindow("edges", CV_WINDOW_AUTOSIZE);
-	cvShowImage("grey", grey);
-	cvShowImage("white", white);
-	cvShowImage("edges", edges);
+	//cvNamedWindow("white", CV_WINDOW_AUTOSIZE);
+	//cvNamedWindow("edges", CV_WINDOW_AUTOSIZE);
+	//cvShowImage("grey", grey);
+	//cvShowImage("white", white);
+	//cvShowImage("edges", edges);
 	//cvShowImage("color_dst",color_dst);
 
 
@@ -1388,7 +1456,7 @@ int main(int argc, char* argv[]) {
 	CvPoint2D32f world_pos;
 	CvPoint perp_point;
 	while (pic) {
-		occlude(pic, cvPoint(300, 250), 205.0);
+		//occlude(pic, cvPoint(300, 250), 220.0);
 		/*
 		 shootRayAtAngle(pic, &cam_center, 274, &perp_point);
 		 CvFont font;
@@ -1406,7 +1474,8 @@ int main(int argc, char* argv[]) {
 		 cvPutText(pic, text, cvPoint(240, 260), &font, cvScalar(255, 255, 255));
 		 */
 		//vaxis(pic);
-		detectBall(pic);
+		//detectBall(pic); 
+		processed = detectLines(pic);
 		//shootRayAt90Incs(pic, &cam_center);
 		/*
 		 printf(
