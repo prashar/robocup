@@ -47,7 +47,17 @@
 #define CAMERA_X 310
 #define CAMERA_Y 250
 
-bool match_yuv(CvScalar pixcolor, CvScalar comparecolor, int flag) ; 
+// Set as global ..
+CvPoint2D32f bottom_left;
+CvPoint2D32f bottom_right;
+
+// FIELD BOUNDS  - NO ROTATION ALGORITHM
+static double k_Y_UPPER = 16.0 ;
+static double k_Y_LOWER = 8.0 ;
+static double k_X_LOWER = 0.0 ;
+static double k_X_UPPER = 10.0 ;
+
+bool match_yuv(CvScalar pixcolor, CvScalar comparecolor, int flag);
 
 using namespace std;
 
@@ -109,7 +119,7 @@ IplImage * detectBall(IplImage * src) {
 				if (h > may)
 					may = h;
 
-				cvCircle(src,cvPoint(w,h),2,cvScalar(255,255,255),1);
+				cvCircle(src, cvPoint(w, h), 2, cvScalar(255, 255, 255), 1);
 			} else {
 				//cvSet2D(src,h,w,black);
 			}
@@ -318,50 +328,59 @@ IplImage * detectCorners(IplImage * src, CvSeq * lines) {
 	return src;
 }
 
-
-
-CvSeq* detectGoalPosts(IplImage * src, CvSeq* lines){
+CvSeq* detectGoalPosts(IplImage * src, CvSeq* lines) {
 	printf("Entered goal Post detection \n");
-	if(lines == NULL)
-		printf ("OOOOOOO\n");
-	CvScalar goalcolor = {0,k_BALLU,k_BALLV} ;    
-	IplImage  * dst       = NULL ;
+	if (lines == NULL)
+		printf("OOOOOOO\n");
+	CvScalar goalcolor = { 0, k_BALLU, k_BALLV };
+	IplImage * dst = NULL;
 	dst = cvCreateImage(cvGetSize(src), IPL_DEPTH_8U, 3);
- 	cvCvtColor(src, dst, CV_BGR2YCrCb);
-	for (int i = 0; i < lines->total; i++)
-	    {
-	      printf("for loop \n");
-	      CvPoint pt_to_check ; 
-	      CvPoint* line = (CvPoint*)cvGetSeqElem(lines,i);
-	      printf("P and Q: %d %d\n",line[0].x,line[0].y);
-	      pt_to_check.x = (line[1].x - line[0].x)/2 ; 
-	      pt_to_check.y = (line[1].y - line[1].y)/2 ;
-	      int j = 0;
-	      CvScalar pix = cvGet2D(dst, pt_to_check.y, pt_to_check.x);
-	      for (j = 0; j < 50; j++ )
-	      {
-		  CvScalar pix2 = cvGet2D(dst, pt_to_check.y+j, pt_to_check.x);
-		  if( match_yuv(pix2,goalcolor,0)) {
-			cvLine(src, line[0], line[1], CV_RGB(0,255,255),3,1);	
-			break;
-		  }
-	      }
-	      for (j = 0; j < 50; j++ )
-	      {
-		  CvScalar pix2 = cvGet2D(dst, pt_to_check.y, pt_to_check.x+j);
-		  if( match_yuv(pix2,goalcolor,0)) {
-			cvLine(src, line[0], line[1], CV_RGB(0,255,255),3,1);	
-			break;
-		  }
-	      }
-				 
-	      /*if( match_yuv(pix,goalcolor,0)){
-	      	 cvLine(src,line[0],line[1],CV_RGB(0,255,255),3,1) ; 
-              } */
-	      // draw each line
-	    }
-}
+	cvCvtColor(src, dst, CV_BGR2YCrCb);
+	cvCircle(src, cvPoint(300, 50), 4, cvScalar(255, 0, 255), 1);
+	CvScalar pix2 = cvGet2D(dst, 50, 300);
+	//printf("%f %f %f\n",pix2.val[0],pix2.val[1],pix2.val[2]) ;
+	//return NULL ;
+	for (int i = 0; i < lines->total; i++) {
+		printf("for loop \n");
+		CvPoint pt_to_check;
+		CvPoint* line = (CvPoint*) cvGetSeqElem(lines, i);
+		printf("P and Q: %d %d, %d %d\n", line[0].x, line[0].y, line[1].x,
+				line[1].y);
+		pt_to_check.x = (line[0].x);
+		pt_to_check.y = (line[0].y);
+		printf("Pt to check: (%d %d)\n", pt_to_check.x, pt_to_check.y);
+		int j = 10;
+		CvScalar pix = cvGet2D(dst, pt_to_check.y, pt_to_check.x);
+		if (match_yuv(pix, cvScalar(0, 132, 123), 0)) {
+			continue;
+		} else {
 
+		}
+		for (j = 10; j > 0; j--) {
+			printf("%d %d\n", pt_to_check.x, pt_to_check.y + j);
+			CvScalar pix2 = cvGet2D(dst, pt_to_check.y + j, pt_to_check.x);
+			printf(" COLOR %f %f\n", pix2.val[1], pix2.val[2]);
+			if (match_yuv(pix2, goalcolor, 0)) {
+				cvLine(src, line[0], line[1], CV_RGB(0,255,255), 3, 1);
+				break;
+			}
+			cvCircle(src, pt_to_check, 4, cvScalar(0, 0, 255), 1);
+		}
+		//return NULL ;
+		for (j = 0; j < 10; j++) {
+			CvScalar pix2 = cvGet2D(dst, pt_to_check.y, pt_to_check.x + j);
+			if (match_yuv(pix2, goalcolor, 0)) {
+				cvLine(src, line[0], line[1], CV_RGB(0,255,255), 3, 1);
+				break;
+			}
+		}
+
+		/*if( match_yuv(pix,goalcolor,0)){
+		 cvLine(src,line[0],line[1],CV_RGB(0,255,255),3,1) ;
+		 } */
+		// draw each line
+	}
+}
 
 // flag == 1 means compare white.
 bool match_yuv(CvScalar pixcolor, CvScalar comparecolor, int flag) {
@@ -370,16 +389,14 @@ bool match_yuv(CvScalar pixcolor, CvScalar comparecolor, int flag) {
 		k_tol = w_tol;
 	} else
 		k_tol = b_tol;
-	if ( ((pixcolor.val[1] - k_tol)
-			<= comparecolor.val[1]) && ((pixcolor.val[1] + k_tol)
-			>= comparecolor.val[1]) && ((pixcolor.val[2] - k_tol)
+	if (((pixcolor.val[1] - k_tol) <= comparecolor.val[1]) && ((pixcolor.val[1]
+			+ k_tol) >= comparecolor.val[1]) && ((pixcolor.val[2] - k_tol)
 			<= comparecolor.val[2]) && ((pixcolor.val[2] + k_tol)
 			>= comparecolor.val[2])) {
 		return true;
 	}
 	return false;
 }
-
 
 IplImage * detectLines(IplImage *frame) {
 
@@ -409,68 +426,68 @@ IplImage * detectLines(IplImage *frame) {
 	cvCanny(grey, edges, CANNY_THRESH_1, CANNY_THRESH_2, APERTURE_SIZE);
 	color_dst = frame;
 	// Find all lines int the binary image edges.
-	lines = cvHoughLines2(edges, storage, CV_HOUGH_PROBABILISTIC, 1.67, CV_PI/180, MAX_THRESHOLD, MIN_LINE_LEN, MAX_GAP_BET_LINES );
+	lines = cvHoughLines2(edges, storage, CV_HOUGH_PROBABILISTIC, 1.67, CV_PI
+			/ 180, MAX_THRESHOLD, MIN_LINE_LEN, MAX_GAP_BET_LINES );
 	//printf("Total Number of Lines detected: %d\n",lines->total) ;
-	    /*for (int i = 0; i < lines->total; i++)
-	    {
-	      CvPoint* line = (CvPoint*)cvGetSeqElem(lines,i);
-	    //  printf("P and Q: %d %d\n",line[0].x,line[0].y);
-	      // draw each line
-	      cvLine(color_dst, line[0], line[1], CV_RGB(255, 0, 0), THICKNESS, TYPE_OF_LINE);
-            }*/
-	detectGoalPosts(color_dst, lines);	
+	for (int i = 0; i < lines->total; i++) {
+		CvPoint* line = (CvPoint*) cvGetSeqElem(lines, i);
+		//  printf("P and Q: %d %d\n",line[0].x,line[0].y);
+		// draw each line
+		cvLine(color_dst, line[0], line[1], CV_RGB(255, 0, 0), THICKNESS,
+				TYPE_OF_LINE);
+	}
+	//detectGoalPosts(color_dst, lines);
 
-		
 	/*float rho_arr[100];
-	float theta_arr[100];
-	float par_lines[100][2];
-	lines = cvHoughLines2(edges, storage, CV_HOUGH_STANDARD, 1, CV_PI / 180,
-			90, 0, 0);
+	 float theta_arr[100];
+	 float par_lines[100][2];
+	 lines = cvHoughLines2(edges, storage, CV_HOUGH_STANDARD, 1, CV_PI / 180,
+	 90, 0, 0);
 
-	for (int i = 0; i < MIN(lines->total,100); i++) {
-		float* line = (float*) cvGetSeqElem(lines, i);
-		float rho = line[0];
-		float theta = line[1];
-		CvPoint pt1, pt2;
-		double a = cos(theta), b = sin(theta);
-		double x0 = a * rho, y0 = b * rho;
-		pt1.x = cvRound(x0 + 1000 * (-b));
-		pt1.y = cvRound(y0 + 1000 * (a));
-		pt2.x = cvRound(x0 - 1000 * (-b));
-		pt2.y = cvRound(y0 - 1000 * (a));
-		cvLine(color_dst, pt1, pt2, CV_RGB(255,0,0), 3, 8);
-		rho_arr[i] = rho;
-		theta_arr[i] = theta;
-	}
-	int i = 0, j = 0, parlines = 0;
-	//printf("Total Lines are %d , MIN():%d\n") ;
-	for (i = 0; i < MIN(lines->total,100); i++) {
-		//printf("rho[i] %f, theta[i] %f \n",rho_arr[i], theta_arr[i]) ;
-		for (j = 0; j < MIN(lines->total,100); j++) {
-			if (i != j) {
-				//printf("------->: %f with %f (%lf)\n",theta_arr[i],theta_arr[j], a) ;
-				//printf("Comparing %f with %f\n",theta_arr[i],theta_arr[j]) ;
-				double a = theta_arr[i] - theta_arr[j];
-				if (a < 0)
-					a *= -1;
-				if (a < 0.02) {
-					par_lines[parlines][0] = rho_arr[i];
-					par_lines[parlines][1] = theta_arr[i];
-					parlines++;
-					par_lines[parlines][0] = rho_arr[j];
-					par_lines[parlines][1] = theta_arr[j];
-					parlines++;
-				}
-			}
-		}
-	}
+	 for (int i = 0; i < MIN(lines->total,100); i++) {
+	 float* line = (float*) cvGetSeqElem(lines, i);
+	 float rho = line[0];
+	 float theta = line[1];
+	 CvPoint pt1, pt2;
+	 double a = cos(theta), b = sin(theta);
+	 double x0 = a * rho, y0 = b * rho;
+	 pt1.x = cvRound(x0 + 1000 * (-b));
+	 pt1.y = cvRound(y0 + 1000 * (a));
+	 pt2.x = cvRound(x0 - 1000 * (-b));
+	 pt2.y = cvRound(y0 - 1000 * (a));
+	 cvLine(color_dst, pt1, pt2, CV_RGB(255,0,0), 3, 8);
+	 rho_arr[i] = rho;
+	 theta_arr[i] = theta;
+	 }
+	 int i = 0, j = 0, parlines = 0;
+	 //printf("Total Lines are %d , MIN():%d\n") ;
+	 for (i = 0; i < MIN(lines->total,100); i++) {
+	 //printf("rho[i] %f, theta[i] %f \n",rho_arr[i], theta_arr[i]) ;
+	 for (j = 0; j < MIN(lines->total,100); j++) {
+	 if (i != j) {
+	 //printf("------->: %f with %f (%lf)\n",theta_arr[i],theta_arr[j], a) ;
+	 //printf("Comparing %f with %f\n",theta_arr[i],theta_arr[j]) ;
+	 double a = theta_arr[i] - theta_arr[j];
+	 if (a < 0)
+	 a *= -1;
+	 if (a < 0.02) {
+	 par_lines[parlines][0] = rho_arr[i];
+	 par_lines[parlines][1] = theta_arr[i];
+	 parlines++;
+	 par_lines[parlines][0] = rho_arr[j];
+	 par_lines[parlines][1] = theta_arr[j];
+	 parlines++;
+	 }
+	 }
+	 }
+	 }
 
-	printf("Parallel Lines :: \n");
-	for (i = 0; i < parlines; i++) {
-		//printf("------->: %f with %f \n",par_lines[i][0],par_lines[i][0]) ;
-		printf("a) rho[i] %f, theta[i] %f \n", par_lines[parlines][0],
-				par_lines[parlines][1]);
-	}*/
+	 printf("Parallel Lines :: \n");
+	 for (i = 0; i < parlines; i++) {
+	 //printf("------->: %f with %f \n",par_lines[i][0],par_lines[i][0]) ;
+	 printf("a) rho[i] %f, theta[i] %f \n", par_lines[parlines][0],
+	 par_lines[parlines][1]);
+	 }*/
 
 	/*edge_detect = detectCorners(frame,lines);
 
@@ -480,13 +497,13 @@ IplImage * detectLines(IplImage *frame) {
 	 //while(1){}
 	 global_match=0 ;
 	 */
-	//cvNamedWindow("grey", CV_WINDOW_AUTOSIZE);
+	cvNamedWindow("grey", CV_WINDOW_AUTOSIZE);
 	//capImage("cap2.jpg",white) ;
-	//cvNamedWindow("white", CV_WINDOW_AUTOSIZE);
-	//cvNamedWindow("edges", CV_WINDOW_AUTOSIZE);
-	//cvShowImage("grey", grey);
-	//cvShowImage("white", white);
-	//cvShowImage("edges", edges);
+	cvNamedWindow("white", CV_WINDOW_AUTOSIZE);
+	cvNamedWindow("edges", CV_WINDOW_AUTOSIZE);
+	cvShowImage("grey", grey);
+	cvShowImage("white", white);
+	cvShowImage("edges", edges);
 	//cvShowImage("color_dst",color_dst);
 
 
@@ -504,7 +521,7 @@ void usage() {
 	printf("./hough -v|-p filename\n");
 }
 
-IplImage * parseImage(IplImage * src) {
+IplImage * findCameraDimensions(IplImage * src) {
 	// Find P1 given the centre
 	int y = 0;
 	y = detectColorChangeY(src, CAMERA_X, CAMERA_Y);
@@ -766,15 +783,6 @@ void getDRdata(IplImage *src, CvPoint arr[][2], CvPoint *perp_point, int count) 
 	}
 }
 
-void findClosestCorner(CvPoint * cam_center, CvPoint * pix_corners,
-		CvPoint * closest_corner) {
-
-}
-
-void findClosestElement(CvPoint2D32f * arr, int count) {
-	// WRITE THIS ..
-}
-
 void getCorners(IplImage * pic, CvPoint img_center, CvPoint *pix_perpendicular,
 		CvPoint *pix_corners, double *global_init_angles) {
 	CvPoint circum_point;
@@ -1009,14 +1017,14 @@ void occlude(IplImage* src, CvPoint cam_center, double radius) {
 			CvScalar black = CV_RGB(0,0,0);
 			CvScalar pix = cvGet2D(src, k, i);
 			// For each pixel, set it to black if it's to the right of the line.
-			if (!pointInsideCircle(cvPoint(i, k), cvPoint(300, 250), radius)) {
+			if (!pointInsideCircle(cvPoint(i, k), cam_center, radius)) {
 				cvSet2D(src, k, i, black);
 			}
 		}
 	}
 }
 
-void Neerajtestpoints(IplImage*pic, int in_rad, int out_rad,
+void AngleBasedLocalization(IplImage*pic, int in_rad, int out_rad,
 		CvPoint img_center, bool top_flag, CvPoint2D32f *world) {
 	double angle = -90.0, angle_rad = 0;
 	CvPoint circum_point;
@@ -1280,6 +1288,7 @@ void Neerajtestpoints(IplImage*pic, int in_rad, int out_rad,
 	world->y = world_y;
 }
 
+// This function shoots the ray at a given angle given src,start_point,angle and perp_point.
 void shootRayAtAngle(IplImage * src, CvPoint *start_point, double angle,
 		CvPoint *perp_point) {
 	CvPoint circum_point;
@@ -1315,10 +1324,12 @@ void shootRayAtAngle(IplImage * src, CvPoint *start_point, double angle,
 	}
 }
 
-void shootRayAt90Incs(IplImage * src, CvPoint *start_point) {
+// This algorithm returns an array with the 4 perpendicular points to it.
+void shootRayAt90Incs(IplImage * src, CvPoint *start_point,
+		double distancesToWhitePerppoints[]) {
 	CvPoint circum_point;
 	int in_rad = 50;
-	int out_rad = 350;
+	int out_rad = 205;
 	int k = 1, inc = 0;
 	double angle = 0.0, angle_rad = 0.0;
 	double bottom_dist = 0.0, right_dist = 0.0, left_dist = 0.0, top_dist = 0.0;
@@ -1328,26 +1339,35 @@ void shootRayAt90Incs(IplImage * src, CvPoint *start_point) {
 
 	for (angle = 0.0; angle < 360.0; angle += 2.0) {
 		angle_rad = ((CV_PI) / 180) * angle;
-		for (k = in_rad; k < out_rad; k += 1) {
+		for (k = out_rad; k > in_rad + 1; k -= 1) {
 			circum_point.x = start_point->x + cos(angle_rad) * k;
 			circum_point.y = start_point->y + sin(angle_rad) * k;
-			if ((circum_point.x > src->width - 1) || (circum_point.x < 0)) {
-				break;
+			if (angle == 96) {
+				//while(1){}
 			}
-			if ((circum_point.y > src->height - 1) || (circum_point.y < 0)) {
-				break;
-			}
+			//if ((circum_point.x > src->width - 1) || (circum_point.x < 0)) {
+			//	break;
+			//}
+			//if ((circum_point.y > src->height - 1) || (circum_point.y < 0)) {
+			//	break;
+			//}
 			pixcolor = cvGet2D(src, circum_point.y, circum_point.x);
 			//printf("Cx,Cy : %d %d(%f)\n", circum_point.x, circum_point.y,angle);
 			if (match(pixcolor, whitecolor, 1)) {
-				if (angle == 90) {
+				if (angle == 96) {
 					bottom_dist = getDistance(circum_point, *start_point);
+					distancesToWhitePerppoints[1] = bottom_dist;
+					cvCircle(src, cvPoint(circum_point.x, circum_point.y), 5,
+							cvScalar(255, 255, 255), 1);
 				} else if (angle == 0) {
 					right_dist = getDistance(circum_point, *start_point);
+					distancesToWhitePerppoints[2] = right_dist;
 				} else if (angle == 180) {
 					left_dist = getDistance(circum_point, *start_point);
-				} else if (angle == 272) {
+					distancesToWhitePerppoints[3] = left_dist;
+				} else if (angle == 266) {
 					top_dist = getDistance(circum_point, *start_point);
+					distancesToWhitePerppoints[0] = top_dist;
 					//printf("CxPT,CyPT : %d %d\n", circum_point.x, circum_point.y);
 				} else {
 					break;
@@ -1361,33 +1381,131 @@ void shootRayAt90Incs(IplImage * src, CvPoint *start_point) {
 						cvScalar(255, 0, 255), 1);
 				break;
 			}
+			//cvCircle(src, cvPoint(circum_point.x, circum_point.y), 5,
+			//						cvScalar(255,255, 255), 1);
+
+
 		}
 	}
-	CvFont font;
-	cvInitFont(&font, CV_FONT_VECTOR0, 0.4, 0.4, 0, 1);
-	char text[40];
-	sprintf(text, "(T,B: %f,%f)", top_dist, bottom_dist);
-	cvPutText(src, text, cvPoint(240, 260), &font, cvScalar(255, 255, 255));
-	sprintf(text, "(R,L: %f,%f)", right_dist, left_dist);
-	cvPutText(src, text, cvPoint(240, 280), &font, cvScalar(255, 255, 255));
+	//cvCircle(src, *start_point, 50, cvScalar(255,255, 255), 1);
+	//CvFont font;
+	//cvInitFont(&font, CV_FONT_VECTOR0, 0.4, 0.4, 0, 1);
+	//char text[40];
+	//sprintf(text, "(T,B: %f,%f)", top_dist, bottom_dist);
+	//cvPutText(src, text, cvPoint(240, 260), &font, cvScalar(255, 255, 255));
+	//sprintf(text, "(R,L: %f,%f)", right_dist, left_dist);
+	//cvPutText(src, text, cvPoint(240, 280), &font, cvScalar(255, 255, 255));
 }
 
 double getWorldDistance(double pix_dist) {
 	return (.00017 * (pow(pix_dist, 2)) - .0073 * (pix_dist) + 0.2);
 }
 
-// Get a virtual axis ..
-// Track the angle made by each frame with the virtual axis ..
-// If the angle hits 0 then
-// If the angle between the 2 bottom centers hits 0, then switch what to add/subtract from.
 
-double vaxis(IplImage * pic) {
-	CvPoint bot = cvPoint(310, 0);
-	CvPoint top = cvPoint(310, 479);
-	CvPoint right = cvPoint(0, 250);
-	CvPoint left = cvPoint(640, 250);
-	cvLine(pic, bot, top, cvScalar(0, 0, 255), 2, 8);
-	cvLine(pic, right, left, cvScalar(0, 0, 255), 2, 8);
+// Test Suite:
+void shootRayAtAngleTest(IplImage * pic, CvPoint cam_center, double angle,
+		CvPoint perp_point, int frame_count) {
+	shootRayAtAngle(pic, &cam_center, angle, &perp_point);
+	CvFont font;
+	cvInitFont(&font, CV_FONT_VECTOR0, 0.4, 0.4, 0, 1);
+	char text[40];
+	sprintf(text, "(%d)", frame_count);
+	cvPutText(pic, text, cvPoint(0, 420), &font, cvScalar(255, 255, 255));
+}
+
+void testAngleBasedLocalization(IplImage * pic, CvPoint cam_center,
+		CvPoint2D32f world_pos) {
+	AngleBasedLocalization(pic, 80, 220, cam_center, 1, &world_pos);
+	CvFont font;
+	cvInitFont(&font, CV_FONT_VECTOR0, 0.4, 0.4, 0, 1);
+	char text[40];
+	sprintf(text, "(%f,%f)", world_pos.x, world_pos.y);
+	cvPutText(pic, text, cvPoint(240, 260), &font, cvScalar(255, 255, 255));
+}
+
+void NoRotationLocalization(IplImage*pic, int in_rad, int out_rad,
+		CvPoint img_center, bool top_flag, CvPoint2D32f *world, int frame_count) {
+	CvPoint bottom_right = cvPoint(10, 8);
+	CvPoint top_right = cvPoint(10, 16);
+	CvPoint bottom_left = cvPoint(0, 8);
+	CvPoint close_points[2];
+	CvPoint2D32f world_space_pt;
+	double world_dist[2];
+	double perp_points[4];
+	shootRayAt90Incs(pic, &img_center, perp_points);
+
+	// This condition covers the case that we don't take an undetected transition, which will be
+	// noted as distance 0 as one of our points.
+
+	if (perp_points[0] < 50) {
+		world_dist[0] = getWorldDistance(perp_points[1]);
+		world_space_pt.y = (double) (k_Y_LOWER + world_dist[0]);
+		printf("Iam hit\n %f %f",world_dist[0],world_space_pt.y);
+	} else if (perp_points[1] < 50) {
+		world_dist[0] = getWorldDistance(perp_points[0]);
+		world_space_pt.y = (double) (k_Y_UPPER - world_dist[0]);
+	} else {
+		if (perp_points[0] < perp_points[1]) {
+			world_dist[0] = getWorldDistance(perp_points[0]);
+			world_space_pt.y = (double) (k_Y_UPPER - world_dist[0]);
+		} else {
+			world_dist[0] = getWorldDistance(perp_points[1]);
+			world_space_pt.y = (double) (k_Y_LOWER + world_dist[0]);
+		}
+	}
+
+	if (perp_points[2] < 50) {
+		world_dist[1] = perp_points[3];
+		world_space_pt.x = (double) (k_X_LOWER + world_dist[1]);
+	} else if (perp_points[3] < 50) {
+		printf("I am hit %f %f\n",perp_points[3],perp_points[2]);
+		world_dist[1] = getWorldDistance(perp_points[2]);
+		world_space_pt.x= (double) (k_X_UPPER - world_dist[1]);
+	} else {
+		if (perp_points[2] > perp_points[3]) {
+			world_dist[1] = getWorldDistance(perp_points[3]);
+			world_space_pt.x = (double) (k_X_LOWER + world_dist[1]);
+
+		} else {
+			world_dist[1] = getWorldDistance(perp_points[2]);
+			world_space_pt.x = (double) (k_X_UPPER - world_dist[1]);
+
+		}
+	}
+
+	double theta = atan( (world_space_pt.x - 10.0) / (world_space_pt.y - 8.0 ) ) ;
+	double theta_deg = (theta * (180/CV_PI)) ;
+	if((theta_deg < -74.0)){
+		printf("\n!!!!!!!!!!!!!!!!! Threshold hit\n") ;
+		if(k_Y_UPPER == 16.0){
+			k_Y_UPPER = k_Y_LOWER ;
+			k_Y_LOWER = 0.0 ;
+		}
+	}
+
+	printf("(world_coords: %f,%f)\n", world_space_pt.x, world_space_pt.y);
+	printf("(world_dist: %f,%f)\n", world_dist[0], world_dist[1]);
+	printf("(pix_dist: %f,%f)\n", perp_points[0], perp_points[1]);
+
+	// Get the world space dist ..
+	CvFont font;
+	cvInitFont(&font, CV_FONT_VECTOR0, 0.4, 0.4, 0, 1);
+	char text[40];
+	sprintf(text, "(world_coords: %f,%f)", world_space_pt.x, world_space_pt.y);
+	cvPutText(pic, text, cvPoint(215, 250), &font, cvScalar(0, 0, 255));
+	sprintf(text, "(Theta: %f)",theta_deg);
+	cvPutText(pic, text, cvPoint(0, 440), &font, cvScalar(0, 0, 255));
+
+}
+
+void testNoRotationLocalization(IplImage * pic, CvPoint cam_center,
+		CvPoint2D32f world_pos, int frame_count) {
+	NoRotationLocalization(pic, 80, 220, cam_center, 1, &world_pos, frame_count);
+	//CvFont font;
+	//cvInitFont(&font, CV_FONT_VECTOR0, 0.4, 0.4, 0, 1);
+	//char text[40];
+	//sprintf(text, "(%f,%f)", world_pos.x, world_pos.y);
+	//cvPutText(pic, text, cvPoint(240, 260), &font, cvScalar(255, 255, 255));
 }
 
 int main(int argc, char* argv[]) {
@@ -1456,176 +1574,17 @@ int main(int argc, char* argv[]) {
 	CvPoint2D32f world_pos;
 	CvPoint perp_point;
 	while (pic) {
-		//occlude(pic, cvPoint(300, 250), 220.0);
-		/*
-		 shootRayAtAngle(pic, &cam_center, 274, &perp_point);
-		 CvFont font;
-		 cvInitFont(&font, CV_FONT_VECTOR0, 0.4, 0.4, 0, 1);
-		 char text[40];
-		 sprintf(text, "(%d)", frame_count);
-		 cvPutText(pic, text, cvPoint(0, 420), &font, cvScalar(255, 255, 255));
-		 */
-		/*
-		 Neerajtestpoints(pic, 80, 220, cam_center, 1, &world_pos);
-		 CvFont font;
-		 cvInitFont(&font, CV_FONT_VECTOR0, 0.4, 0.4, 0, 1);
-		 char text[40];
-		 sprintf(text, "(%f,%f)", world_pos.x, world_pos.y);
-		 cvPutText(pic, text, cvPoint(240, 260), &font, cvScalar(255, 255, 255));
-		 */
-		//vaxis(pic);
-		//detectBall(pic); 
-		processed = detectLines(pic);
-		//shootRayAt90Incs(pic, &cam_center);
-		/*
-		 printf(
-		 "closest pixels in PSpace @ (%d,%d), (%d,%d), (%d,%d), (%d,%d)\n",
-		 pix_corners[0].x, pix_corners[0].y, pix_corners[1].x,
-		 pix_corners[1].y, pix_corners[2].x, pix_corners[2].y,
-		 pix_corners[3].x, pix_corners[3].y);
-		 int i = 0;
-		 CvPoint closest_corner;
-		 double theta;
-		 for (i = 0; i < 4; i++) {
-		 findClosestCorner(&cam_center, pix_corners, &closest_corner);
-		 theta = getTheta(cam_center, closest_corner,
-		 pix_perpendicular[i], pic);
-		 printf("closest corner @ pixel space (%d %d)\n",
-		 closest_corner.x, closest_corner.y);
-		 printf("theta for pix_perp[%d] is %f\n", i, theta);
-		 }
-		 }
-
-		 IplImage *tpl = cvLoadImage("Videos/newpoint.jpg", 1);
-		 if(tpl == NULL)
-		 printf("Img is null\n");
-		 CvRect rect = cvRect(0, 0, 640, 480);
-		 cvSetImageROI(pic, rect);
-		 printf("Circle Width is %d, %d",tpl->width,tpl->height);
-		 IplImage *res = cvCreateImage(cvSize(rect.width - tpl->width + 1,rect.height - tpl->height + 1), IPL_DEPTH_32F, 1);
-		 cvMatchTemplate(pic, tpl, res, CV_TM_SQDIFF);
-		 // find best matches location
-		 CvPoint minloc, maxloc;
-		 printf("got here\n");
-		 double minval, maxval;
-		 cvMinMaxLoc(res, &minval, &maxval, &minloc, &maxloc, 0);
-		 printf("got here\n");
-		 cvRectangle(pic,cvPoint(minloc.x, minloc.y),cvPoint(minloc.x + tpl->width, minloc.y + tpl->height),CV_RGB(255, 0, 0), 1, 0, 0 );
-		 cvResetImageROI(pic);
-		 printf("got here\n");
-		 */
-
-		//IplImage * grey = cvCreateImage(cvGetSize(pic), IPL_DEPTH_8U, 1);
-		//cvCvtColor(pic, grey, CV_BGR2GRAY);
-		//getHoughBall(grey);
-		/*
-		 occludeView(pic, cvPoint(330, 0), cvPoint(330, 480));
-		 int i = 0, count = 0;
-		 CvPoint arr[300][2], perp_point[1];
-		 double pixandworlddist[300][2] ;
-		 count = drawRadialFromPoint(pic, 150, 220, cvPoint(CAMERA_X, CAMERA_Y),
-		 arr, perp_point);
-		 printf("Perp. Point (%d,%d) \n", perp_point[0].x, perp_point[0].y);
-		 printf("%d Points Detected \n", count);
-		 for (i = 0; i < count; i++) {
-		 printf(" x,y: %d , %d \n", arr[i][0].x, arr[i][0].y);
-		 }
-		 getDRdata(pic,arr,perp_point,count) ;
-
-		 // For all x's to the right of the main perp point , get
-		 // thetas and add them to the global array.
-		 double dist_inc = 0, theta = 0;
-		 for (i = 0; i < count; i++) {
-		 theta = getTheta(cvPoint(CAMERA_X, CAMERA_Y), arr[i][0],
-		 perp_point[0], pic);
-		 // Take stuff only less than 45 degrees ..
-		 if(theta <= 0.7853){
-		 dist_inc = (tan(theta) * 5);
-		 printf("dist_inc initial %f\n", dist_inc);
-		 if (arr[i][0].y < perp_point[0].y) {
-		 printf("1 %d %d\n", arr[i][0].y, perp_point[0].y);
-		 dist_inc = (double)DIST_LEFT + dist_inc ;
-		 } else if (arr[i][0].y > perp_point[0].y) {
-		 dist_inc = (double)DIST_LEFT - dist_inc ;
-		 } else
-		 dist_inc = (double)DIST_LEFT;
-		 printf("dist_inc after modification %f\n", dist_inc);
-		 int dist = (int) round(dist_inc);
-		 CvPoint world_point = cvPoint(0, dist);
-		 printf("World Coordinate is( %d %d)\n", world_point.x,
-		 world_point.y);
-		 arr[i][1].x = world_point.x;
-		 arr[i][1].y = world_point.y;
-		 printf("----\n");
-		 //pointOnStraightLine(dist_inc);
-		 }
-		 }
-
-		 for(i=0 ; i<count ; i++){
-		 pixandworlddist[i][0] = getDistance(cvPoint(CAMERA_X,CAMERA_Y),arr[i][0]);
-		 pixandworlddist[i][1] = getDistance(cvPoint(5,8),arr[i][1]);
-		 }
-
-		 // Pixel to World ->
-		 for (i = 0; i < count; i++) {
-		 printf("PIXEL (%d %d) --> WORLD (%d,%d)\n",arr[i][0].x,arr[i][0].y,arr[i][1].x,arr[i][1].y);
-		 printf("PIX DIST(%f) --> WORLD DIST(%f)\n",pixandworlddist[i][0],pixandworlddist[i][1]) ;
-		 }
-		 //processed = detectLines(pic);
-		 // Detect the ball first.
-		 //detectBall(processed) ;
-		 // Mark Camera
-		 //cvCircle(pic,cvPoint(CAMERA_X,CAMERA_Y),50,cvScalar(0,0,255),1);
-		 /* show the loaded image with edges detected*/
-		/*
-		 CvPoint white,transition,arc_point,perp_point;
-		 white = getWhitePoint(pic,50,white) ;
-		 double angle = getAngleToDrawLine(pic,white),theta=0 ;
-		 printf("Angle is %f\n",angle * (180/(CV_PI)));
-		 //drawRadialLine(pic,angle) ;
-		 transition = findTransitionPoint(pic,angle,white);
-		 cvCircle(pic,transition,2,cvScalar(255,255,255),1);
-		 // Calculate arcpoint ;
-		 //arc_point.x = white.x + 30 ;
-		 //arc_point.y = detectColorChangeY(pic,arc_point.x,white.y);
-
-		 // Theoretically, this is just y2-y1,x2-x1
-		 perp_point.x = white.x + abs(transition.y - white.y) ;
-		 perp_point.y = white.y + abs(white.x - transition.x) ;
-		 printf("ppx,ppy,wwx,wwy: %d %d %d %d\n",perp_point.x, perp_point.y,white.x,white.y);
-
-		 // distance from white to first transition point
-		 double dist = getDistance(white,transition) ;
-
-		 CvPoint arr[40] ;
-		 int count = drawRadialFromPoint(pic,200,white,arr);
-		 printf("%d Points Detected \n",count);
-		 for(i=0 ; i < count ; i++ ){
-		 printf(" x,y: %d , %d \n", arr[i].x,arr[i].y) ;
-		 }
-
-		 // For all x's to the right of the main perp point , get thetas and add them to the global array.
-		 double dist_inc = 0 ;
-		 for(i=0 ; i < count ; i++ ){
-		 if(arr[i].x > transition.x && arr[i].y > white.y){
-		 theta = giveTheta(white,arr[i],transition);
-		 printf("Theta is %f deg and %f radians \n",theta * (180/(CV_PI)), theta);
-		 dist_inc = (tan(theta)*dist);
-		 pointOnStraightLine(dist_inc) ;
-		 }else{
-		 printf("Ignoring ..\n") ;
-		 }
-		 }
+		//occlude(pic, cvPoint(300, 250), 210.0);
+		occludeView(pic, cvPoint(0, 479), cvPoint(639, 0));
 
 
-		 printf("Distance is %f pixels\n", dist);
-		 // Set default to t_word.
-		 top[next_avail++] = 7.5 ;
-		 dist_inc = (tan(theta)*dist) ;
-		 pointOnStraightLine(dist_inc) ;
-		 //pic = parseImage(pic);
-		 *
-		 */
+		//testAngleBasedLocalization(pic, cam_center, world_pos);
+		//detectBall(pic);
+		//processed = detectLines(pic);
+		//NoRotationAlgorithm(pic,cam_center) ;
+		//if(frame_count == 0){
+		testNoRotationLocalization(pic, cam_center, world_pos, frame_count);
+		//}
 
 		cvShowImage(window_name, pic);
 		//cvWaitKey(0);
